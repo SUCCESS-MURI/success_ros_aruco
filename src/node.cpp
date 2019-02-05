@@ -69,7 +69,6 @@ class AruCoProcessing
     void infoCb(const sensor_msgs::CameraInfoConstPtr &cam_info)
     {
 
-        std::cout << cam_info->K[0] << std::endl;
         float cam_data[9];
         if (cam_info->K.size() >= 9)
         {
@@ -179,7 +178,12 @@ class AruCoProcessing
     void imageCb(const sensor_msgs::ImageConstPtr &msg)
     {
         std::unique_lock<std::mutex> lock1(image_mutex_);
-        image_ = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8)->image;
+        //note to self, the incoming message have different encodings
+        //kinect2 -> 8UC1 for mono
+        //I'm not sure if the encoding will break the detector, but for now
+        //we do not do any kind of convertions 
+        image_ = cv_bridge::toCvCopy(msg)->image;
+
         valid = true;
         latest_header_ = msg->header;
     }
@@ -239,15 +243,9 @@ class AruCoProcessing
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "aruco_process_node");
-    try
-    {
-        AruCoProcessing pc;
-        ROS_INFO("Spinning");
-        ros::spin();
-    }
-    catch (const std::exception &e)
-    {
-        ROS_ERROR("exception: %s", e.what());
-        return 0;
-    }
+
+    AruCoProcessing pc;
+    ROS_INFO("Spinning");
+    ros::spin();
+
 }

@@ -1,0 +1,19 @@
+<launch>
+
+  <!-- Launch kinect 2  -->
+  <include file="$(find kinect2_bridge)/launch/kinect2_bridge.launch" />
+
+  <node pkg="success_ros_aruco" type="success_ros_aruco_node" name="aruco_node" output="screen">
+   
+    <param name="marker_dictonary" value="TAG16h5"/>
+    
+    <param name="marker_size" value="0.045"/>
+    <param name="rate" value="10"/>
+
+    <remap from="image" to="kinect2/hd/image_mono_rect"/>
+    <remap from="camera_info" to="kinect2/hd/camera_info"/>
+
+    <remap from="markers" to="/markersAruco"/>
+  </node>
+
+</launch>
