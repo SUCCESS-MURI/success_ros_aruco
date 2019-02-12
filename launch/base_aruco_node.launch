@@ -1,0 +1,17 @@
+
+<launch>
+  <arg name="marker_dictionary" default="TAG16h5" />
+  <arg name="marker_size" default="0.045" />
+  <arg name="rate" value="10"/>
+  
+  
+  <node pkg="success_ros_aruco" type="success_ros_aruco_node" name="aruco_node" output="screen">
+   
+    <param name="marker_dictonary" value="$(arg marker_dictionary)"/>
+    <param name="marker_size" value="$(arg marker_size)"/>
+    <param name="rate" value="$(arg rate)"/>
+    <remap from="image" to="kinect2/hd/image_mono_rect"/>
+    <remap from="camera_info" to="kinect2/hd/camera_info"/>
+    <remap from="markers" to="/markersAruco"/>
+  </node>
+</launch>

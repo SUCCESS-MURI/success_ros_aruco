@@ -2,18 +2,9 @@
 
   <!-- Launch kinect 2  -->
   <include file="$(find kinect2_bridge)/launch/kinect2_bridge.launch" />
-
-  <node pkg="success_ros_aruco" type="success_ros_aruco_node" name="aruco_node" output="screen">
-   
-    <param name="marker_dictonary" value="TAG16h5"/>
-    
-    <param name="marker_size" value="0.045"/>
-    <param name="rate" value="10"/>
-
-    <remap from="image" to="kinect2/hd/image_mono_rect"/>
-    <remap from="camera_info" to="kinect2/hd/camera_info"/>
-
-    <remap from="markers" to="/markersAruco"/>
-  </node>
-
+  <!-- The position of the camera relative to the table -->
+  <!-- static_transform_publisher x y z roll pitch yaw frame_id child_frame_id  period_in_ms -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="link1_broadcaster" args="0 0 1.24 3.1415/2 3.1415 0 base kinect2_link" />
+  <!-- Actual node -->
+  <include file="$(find success_ros_aruco)/launch/base_aruco_node.launch"/>
 </launch>
