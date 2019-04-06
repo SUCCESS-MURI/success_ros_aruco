@@ -44,7 +44,7 @@ class AruCoProcessing
         : it_(nh_), nh_("~")
     {
         //load parameters
-        if (!nh_.getParam("marker_dictonary", dictionary_name_))
+        if (!nh_.getParam("marker_dictionary", dictionary_name_))
             dictionary_name_ = "ARUCO_MIP_36h12";
         if (!nh_.getParam("marker_size", marker_size_meters_))
             marker_size_meters_ = 0.053;
@@ -182,7 +182,7 @@ class AruCoProcessing
         //kinect2 -> 8UC1 for mono
         //I'm not sure if the encoding will break the detector, but for now
         //we do not do any kind of convertions 
-        image_ = cv_bridge::toCvCopy(msg)->image;
+        image_ = cv_bridge::toCvCopy(msg, "mono8")->image;
 
         valid = true;
         latest_header_ = msg->header;

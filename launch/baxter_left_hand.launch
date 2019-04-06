@@ -1,17 +1,17 @@
 <launch>
 
-  <node pkg="success_ros_aruco" type="success_ros_aruco_node" name="aruco_node" output="screen">
-   
-    <param name="marker_dictonary" value="TAG36h11"/>
+  <arg name="marker_size" default="0.01" />
+  <arg name="marker_dictionary" default="TAG36h11" />
+
+  <remap from="/image" to="/cameras/left_hand_camera/image"/>
+  <remap from="/camera_info" to="/cam2/camera_info"/>
+
+  <include file="$(find success_ros_aruco)/launch/base_aruco_node.launch">
     
-    <param name="marker_size" value="0.034"/>
-    <param name="rate" value="10"/>
+    <arg name="marker_dictionary" value="$(arg marker_dictionary)"/>
+    <arg name="marker_size" value="$(arg marker_size)"/>
+    <arg name="rate" value="10"/>
 
-    <remap from="/image" to="/cameras/left_hand_camera/image"/>
-    <remap from="/camera_info" to="/cam2/camera_info"/>
-    <!-- <remap from="/cameras/left_hand_camera/camera_info" to="/camera_info"/> -->
-
-    <remap from="markers" to="/markersAruco"/>
-  </node>
+  </include>
 
 </launch>

@@ -33,7 +33,7 @@ class ArucoTagModule(object):
 
             #fire each callback as a seperate thread
             for callback in self._callbacks:
-
+                
                 stamped_transform = self._tf_buffer.lookup_transform('base', marker.pose.header.frame_id, rospy.Time(), rospy.Duration(1.0))
                 #print(marker.pose)
                 saved_pose = tf2_geometry_msgs.do_transform_pose(marker.pose, stamped_transform)                
@@ -78,9 +78,14 @@ class ArucoTagModule(object):
 
             #transform frame
             if frame_id is not None:
-                #TODO add exception, maximum timeout etc
-                stamped_transform = self._tf_buffer.lookup_transform(frame_id, saved_pose.header.frame_id, rospy.Time(), rospy.Duration(1.0))
-                saved_pose = tf2_geometry_msgs.do_transform_pose(saved_pose, stamped_transform)
+                try:
+                #TODO add maximum timeout etc
+                    stamped_transform = self._tf_buffer.lookup_transform(frame_id, saved_pose.header.frame_id, saved_pose.header.stamp, rospy.Duration(1.0))
+                    saved_pose = tf2_geometry_msgs.do_transform_pose(saved_pose, stamped_transform)
+                except tf2_ros.ExtrapolationException as e:
+                    rospy.logerr("Unable to transform tag pose")
+                    rospy.logerr(str(e))
+                    return None
                 
             return saved_pose
         else:
@@ -158,7 +163,7 @@ class ArucoTagModule(object):
             rospy.loginfo("ID never been seen")
             return None
     
-    def waitForID(self, id, timeout=0):
+    def wait_for_id(self, id, timeout=0):
 
         r = rospy.Rate(10)
         while id not in self.detected_tags:
