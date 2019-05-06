@@ -6,8 +6,7 @@
   
   
   <node pkg="success_ros_aruco" type="success_ros_aruco_node" name="aruco_node" output="screen">
-   
-    <param name="marker_dictonary" value="$(arg marker_dictionary)"/>
+    <param name="marker_dictionary" value="$(arg marker_dictionary)"/>
     <param name="marker_size" value="$(arg marker_size)"/>
     <param name="rate" value="$(arg rate)"/>
   </node>
