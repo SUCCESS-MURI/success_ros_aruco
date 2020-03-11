@@ -143,7 +143,7 @@ class ArucoTagModule(object):
             
         return seen_ids 
 
-    def getTimeForID(self, ids):
+    def get_last_seen_time_for_id(self, id_):
         """
         Returns the time stamp of the AprilTag was last seen, none otherwise.
         
@@ -157,10 +157,10 @@ class ArucoTagModule(object):
             Two-integer timestamp of the last time the AprilTag was seen
 
         """
-        if self.checkID(id_):
+        if self.check_id(id_):
             return self.detected_tags[id_].header.stamp
         else:
-            rospy.loginfo("ID never been seen")
+            rospy.loginfo("ID {} never been seen".format(id_))
             return None
     
     def wait_for_id(self, id, timeout=0):
