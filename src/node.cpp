@@ -32,18 +32,20 @@ class AruCoProcessing
     std::string dictionary_name_;
     std::map<int, aruco::MarkerPoseTracker> tracker_map_;
     std::mutex image_mutex_;
-    bool valid = false;
+    std::mutex sub_mutex_;
+    bool valid_ = false;
+    bool isRunning_ = false;
     cv::Mat image_;
     aruco::CameraParameters camera_info_;
     std_msgs::Header latest_header_;
+    std_msgs::Header last_processed_header_;
     ros::Timer process_timer_;
 
-
-  public:
+public:
     AruCoProcessing()
         : it_(nh_), nh_("~")
     {
-        //load parameters
+        // load parameters
         if (!nh_.getParam("marker_dictionary", dictionary_name_))
             dictionary_name_ = "ARUCO_MIP_36h12";
         if (!nh_.getParam("marker_size", marker_size_meters_))
@@ -51,19 +53,47 @@ class AruCoProcessing
         if (!nh_.getParam("rate", process_rate_))
             process_rate_ = 20;
 
-        //set local parameters
+        // set local parameters
         detector_.setDictionary(dictionary_name_);
-        //subscribe to local channels
-        image_sub_ = it_.subscribe("/image", 1,
-                                       &AruCoProcessing::imageCb, this);
-        info_sub_ = nh_.subscribe("/camera_info",1, &AruCoProcessing::infoCb, this);
-        markers_pub_ = nh_.advertise<success_ros_msgs::DetectedMarkers>("markers", 1);
-        poses_pub_ = nh_.advertise<geometry_msgs::PoseArray>("marker_poses", 1);
+
+        auto subStatusChangeCB = boost::bind(&AruCoProcessing::updateSubscribingSystem, this, _1);
+
+        markers_pub_ = nh_.advertise<success_ros_msgs::DetectedMarkers>("/markers", 1, subStatusChangeCB, subStatusChangeCB);
+        poses_pub_ = nh_.advertise<geometry_msgs::PoseArray>("/marker_poses", 1, subStatusChangeCB, subStatusChangeCB);
+
         ROS_INFO("ROS ARUCO: DICT: %s, size:%f", dictionary_name_.c_str(), marker_size_meters_);
 
-        //create a timer that called to process the image
-        //start this
+        // create a timer that called to process the image on a seperate clock
         process_timer_ = nh_.createTimer(ros::Rate(process_rate_), &AruCoProcessing::processCB, this);
+    }
+
+    void updateSubscribingSystem(const ros::SingleSubscriberPublisher& pub)
+    {
+        std::unique_lock<std::mutex> lock(sub_mutex_);
+        if (markers_pub_.getNumSubscribers() == 0 && poses_pub_.getNumSubscribers() == 0)
+        {
+            // There are no subscriber
+            if (isRunning_){
+                // unsubscribe from the image
+                image_sub_.shutdown();
+                info_sub_.shutdown();
+                isRunning_ = false;
+            }
+        }
+        else
+        {
+            // There are still subscribers
+            if (!isRunning_){
+                // set flags such as valid to be false
+                valid_ = false;
+                isRunning_ = true;
+                // subscribe and start running
+                image_sub_ = it_.subscribe("/image", 1,
+                                        &AruCoProcessing::imageCb, this);
+                info_sub_ = nh_.subscribe("/camera_info", 1,
+                                        &AruCoProcessing::infoCb, this);
+            }
+        }
     }
 
     void infoCb(const sensor_msgs::CameraInfoConstPtr &cam_info)
@@ -139,7 +169,7 @@ class AruCoProcessing
         return aruco::CameraParameters(cam_mat, distortian_mat, cam_size);
     }
 
-    geometry_msgs::PoseStamped convertToStampedPose(std_msgs::Header header, cv::Mat& rvec, cv::Mat& tvec)
+    geometry_msgs::PoseStamped convertToStampedPose(std_msgs::Header header, cv::Mat &rvec, cv::Mat &tvec)
     {
         geometry_msgs::PoseStamped pose;
         pose.header = header;
@@ -149,9 +179,9 @@ class AruCoProcessing
         float rx = rvec.ptr<float>(0)[0];
         float ry = rvec.ptr<float>(0)[1];
         float rz = rvec.ptr<float>(0)[2];
-        float nsqa = rx*rx + ry*ry + rz*rz;
+        float nsqa = rx * rx + ry * ry + rz * rz;
         float a = std::sqrt(nsqa);
-        float i_a=a?1./a:0;
+        float i_a = a ? 1. / a : 0;
         tf::Quaternion rot_quaternion(tf::Vector3(rx * i_a, ry * i_a, rz * i_a), a);
 
         //Note: Rotate the axis -180 degrees around Z-axis. Such that y-axis points upwards in the image
@@ -181,18 +211,25 @@ class AruCoProcessing
         //note to self, the incoming message have different encodings
         //kinect2 -> 8UC1 for mono
         //I'm not sure if the encoding will break the detector, but for now
-        //we do not do any kind of convertions 
+        //we do not do any kind of convertions
         image_ = cv_bridge::toCvCopy(msg, "mono8")->image;
 
-        valid = true;
+        valid_ = true;
         latest_header_ = msg->header;
     }
 
     void processCB(const ros::TimerEvent &event)
     {
         //check to see if the process is running at the set speed (default 20Hz)
-        if((1.0/process_rate_) < event.profile.last_duration.toSec()){
-            ROS_WARN("Process is running behind set rate of %d real rate:%f",process_rate_, 1.0/(event.current_real - event.last_real).toSec());
+        if ((1.0 / process_rate_) < event.profile.last_duration.toSec())
+        {
+            ROS_WARN("Process is running behind set rate of %d real rate:%f", process_rate_, 1.0 / (event.current_real - event.last_real).toSec());
+        }
+
+        // we don't do any calculations and publish if there is no subscribers.
+        if (markers_pub_.getNumSubscribers() == 0 && poses_pub_.getNumSubscribers() == 0)
+        {
+            return;
         }
 
         cv::Mat image_raw;
@@ -201,17 +238,23 @@ class AruCoProcessing
         //copy in the latest copy of the results
         {
             std::unique_lock<std::mutex> lock2(image_mutex_);
-            if (!valid)
+            if (!valid_)
             {
-                ROS_WARN("No valid Images found");
+                ROS_WARN("Have no receive any images");
+                return;
+            }
+            // check if the image is the old image or the new one.
+            if (last_processed_header_.seq == latest_header_.seq)
+            {
+                ROS_WARN("Have no receive new image, reusing previous image.");
                 return;
             }
             image_raw = image_;
             cam_parameter = camera_info_;
             header = latest_header_;
-            valid = false;
+            last_processed_header_ = latest_header_;
         }
-        //process the latest image 
+        //process the latest image
         auto markers = detector_.detect(image_raw, cam_parameter, marker_size_meters_);
         ROS_DEBUG("Detected %lu markers", markers.size());
 
@@ -239,7 +282,6 @@ class AruCoProcessing
     }
 };
 
-
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "aruco_process_node");
@@ -247,5 +289,4 @@ int main(int argc, char **argv)
     AruCoProcessing pc;
     ROS_INFO("Spinning");
     ros::spin();
-
 }

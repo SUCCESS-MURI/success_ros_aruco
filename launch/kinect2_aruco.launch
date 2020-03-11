@@ -8,8 +8,12 @@
 
   <remap from="image" to="kinect2/hd/image_mono_rect"/>
   <remap from="camera_info" to="kinect2/hd/camera_info"/>
-  <remap from="markers" to="/markersAruco"/>
 
   <!-- Actual node -->
-  <include file="$(find success_ros_aruco)/launch/base_aruco_node.launch"/>
+  <include file="$(find success_ros_aruco)/launch/base_aruco_node.launch">
+    <arg name="marker_dictionary" value="$(arg marker_dictionary)"/>
+    <arg name="marker_size" value="$(arg marker_size)"/>
+    <arg name="rate" value="$(arg rate)"/>
+    <arg name="output" value="$(arg output)"/>
+  </include>
 </launch>

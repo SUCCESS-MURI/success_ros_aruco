@@ -11,7 +11,7 @@ from geometry_msgs.msg import PoseStamped
 class ArucoTagModule(object):
     """Wrapper for Aruco Module
     """
-    def __init__(self, topic_name='/aruco_node/markers'):
+    def __init__(self, topic_name='/markers'):
         rospy.Subscriber(topic_name, DetectedMarkers, self._tagCallback)
         #dict that stored all seen tags
         self.detected_tags = {}

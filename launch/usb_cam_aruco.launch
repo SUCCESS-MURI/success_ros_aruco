@@ -1,0 +1,37 @@
+<launch>
+
+  <arg name="marker_dictionary" default="TAG16h5" />
+  <arg name="marker_size" default="0.045" />
+  <arg name="rate" default="10"/>
+  <arg name="output" default="screen"/>
+
+  <arg name="camera_topic_name" default="usb_cam_example" />
+  <arg name="video_device" default="/dev/video0" />
+  <arg name="image_width" default="1280"/>
+  <arg name="image_height" default="720"/>
+  <arg name="framerate" default="7"/>
+  <arg name="camera_name" default="logitech-c270"/>
+
+  <node pkg="usb_cam" type="usb_cam_node" name="$(arg camera_topic_name)" output="$(arg output)">
+    <param name="video_device" value="$(arg video_device)"/>
+    <param name="pixel_format" value="yuyv"/>
+    <param name="image_width" value="$(arg image_width)"/>
+    <param name="image_height" value="$(arg image_height)"/>
+    <param name="framerate" value="$(arg framerate)"/>
+    <param name="camera_name" value="$(arg camera_name)"/>
+  </node>
+
+  <group>
+
+    <remap from="image" to="/$(arg camera_topic_name)/image_raw"/>
+    <remap from="camera_info" to="/$(arg camera_topic_name)/camera_info"/>
+
+    <!-- Actual node -->
+    <include file="$(find success_ros_aruco)/launch/base_aruco_node.launch">
+      <arg name="marker_dictionary" value="$(arg marker_dictionary)"/>
+      <arg name="marker_size" value="$(arg marker_size)"/>
+      <arg name="rate" value="$(arg rate)"/>
+      <arg name="output" value="$(arg output)"/>
+    </include>
+  </group>
+</launch>
